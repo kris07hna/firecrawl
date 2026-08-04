@@ -1,10 +1,11 @@
+import os
 import json
 import subprocess
 from crawler.config import log, DEFAULT_MODEL
 
 async def check_opencode() -> bool:
     try:
-        res = subprocess.run(["opencode", "--version"], capture_output=True, text=True, timeout=5)
+        res = subprocess.run(["opencode", "--version"], capture_output=True, text=True, timeout=5, shell=(os.name == 'nt'))
         return res.returncode == 0
     except Exception:
         return False
@@ -16,7 +17,8 @@ async def ask_opencode(prompt: str, model: str = DEFAULT_MODEL) -> str:
             ["opencode", "run", "-m", model, prompt],
             capture_output=True,
             text=True,
-            timeout=180
+            timeout=180,
+            shell=(os.name == 'nt')
         )
         if res.returncode != 0:
             log(f"AI Error: {res.stderr.strip()}", "ERROR")
