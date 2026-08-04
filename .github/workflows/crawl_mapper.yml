@@ -1,5 +1,8 @@
 name: Enterprise Web Flow & UX Mapper
 
+# ---------------------------------------------------------
+# Define when this workflow can be triggered (manually via GitHub UI)
+# ---------------------------------------------------------
 on:
   workflow_dispatch:
     inputs:
@@ -41,37 +44,45 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      # Step 1: Checkout the source code from the repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # Step 2: Set up the Python environment (version 3.12)
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
+      # Step 3: Set up Node.js to allow installation of the OpenCode AI CLI
       - name: Set up Node.js (for OpenCode CLI)
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      # Step 4: Install Linux system dependencies required by Playwright (headless browser)
       - name: Install System Dependencies for Playwright
         run: |
           sudo apt-get update
           sudo apt-get install -y libgbm-dev
 
+      # Step 5: Install Python libraries (playwright for browser automation, nest_asyncio for async)
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install playwright nest_asyncio
 
+      # Step 6: Download the actual headless Chromium browser binary
       - name: Install Playwright Browsers
         run: |
           playwright install --with-deps chromium
 
+      # Step 7: Install the global npm package for the OpenCode AI engine
       - name: Install OpenCode CLI
         run: |
           npm install -g opencode-ai
 
+      # Step 8: Execute the crawler using the user-provided inputs
       - name: Run Enterprise AI Crawler
         run: |
           # Build dynamic flags based on workflow inputs
@@ -96,6 +107,7 @@ jobs:
             --output-dir "screenshots_ai_output" \
             $VIEWPORT_FLAG $FULLPAGE_FLAG
 
+      # Step 9: Zip the screenshots and sitemap.json and upload them to the GitHub UI for download
       - name: Upload Output Artifacts
         uses: actions/upload-artifact@v4
         with:
