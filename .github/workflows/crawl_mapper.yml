@@ -84,6 +84,8 @@ jobs:
 
       # Step 8: Execute the crawler using the user-provided inputs
       - name: Run Enterprise AI Crawler
+        env:
+          PYTHONUNBUFFERED: "1"
         run: |
           # Build dynamic flags based on workflow inputs
           VIEWPORT_FLAG=""
@@ -99,7 +101,7 @@ jobs:
           fi
           
           # Run the modular enterprise crawler
-          python crawl_map_ai.py \
+          python -u crawl_map_ai.py \
             --url "${{ inputs.url }}" \
             --goal "${{ inputs.goal }}" \
             --model "${{ inputs.model }}" \
