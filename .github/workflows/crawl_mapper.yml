@@ -36,6 +36,7 @@ on:
         options:
           - 'flow'
           - 'spider'
+          - 'ux-ia'
       max_steps:
         description: 'Maximum number of steps/clicks the AI can perform per viewport'
         required: false

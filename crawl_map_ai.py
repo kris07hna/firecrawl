@@ -3,6 +3,7 @@ import asyncio
 from crawler.config import VERSION, DEFAULT_MODEL, MAX_STEPS
 from crawler.runner import run_crawler
 from crawler.spider import run_spider
+from crawler.ux_ia import run_ux_ia
 
 def main():
     parser = argparse.ArgumentParser(
@@ -10,7 +11,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--url",          required=True,                   help="Target website URL")
-    parser.add_argument("--mode",         choices=["flow", "spider"], default="flow", help="Crawler mode: 'flow' (AI-driven path) or 'spider' (BFS site mapping)")
+    parser.add_argument("--mode",         choices=["flow", "spider", "ux-ia"], default="flow", help="Crawler mode: 'flow' (AI-driven path), 'spider' (BFS site mapping), or 'ux-ia' (Ultra-fast structural crawl + AI UX synthesis)")
     parser.add_argument("--goal",         default="Explore website",       help="Navigation goal / what to map")
     parser.add_argument("--output-dir",   default="screenshots_ai",        help="Output directory (default: screenshots_ai)")
     parser.add_argument("--model",        default=DEFAULT_MODEL,           help=f"OpenCode model (default: {DEFAULT_MODEL})")
@@ -34,13 +35,20 @@ def main():
             desktop_only = args.desktop_only,
             mobile_only  = args.mobile_only,
         ))
-    else:
+    elif args.mode == "spider":
         asyncio.run(run_spider(
             start_url    = args.url,
             output_dir   = args.output_dir,
             full_page    = args.full_page,
             desktop_only = args.desktop_only,
             mobile_only  = args.mobile_only,
+            max_pages    = args.max_steps
+        ))
+    elif args.mode == "ux-ia":
+        asyncio.run(run_ux_ia(
+            start_url    = args.url,
+            output_dir   = args.output_dir,
+            model        = args.model,
             max_pages    = args.max_steps
         ))
 

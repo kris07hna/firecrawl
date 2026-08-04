@@ -1,0 +1,93 @@
+{
+  "version": "3.0.0",
+  "generated_at": "2026-08-04T11:36:10.881757+00:00",
+  "start_url": "https://quotes.toscrape.com/",
+  "mode": "spider",
+  "pages": [
+    {
+      "step": 1,
+      "url": "https://quotes.toscrape.com/",
+      "name": "Quotes to Scrape",
+      "ia": {
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Quotes to Scrape"
+          },
+          {
+            "level": "h2",
+            "text": "Top Ten tags"
+          }
+        ],
+        "links": [
+          {
+            "text": "Next \u2192",
+            "href": "/page/2/"
+          }
+        ],
+        "semantics": {
+          "nav": true,
+          "footer": true
+        }
+      },
+      "screenshot_desktop": "spider_test_output\\desktop_page_01.png",
+      "screenshot_mobile": "spider_test_output\\mobile_page_01.png"
+    },
+    {
+      "step": 2,
+      "url": "https://quotes.toscrape.com/tag/friendship/",
+      "name": "Quotes to Scrape",
+      "ia": {
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Quotes to Scrape"
+          },
+          {
+            "level": "h3",
+            "text": "Viewing tag: friendship"
+          },
+          {
+            "level": "h2",
+            "text": "Top Ten tags"
+          }
+        ],
+        "links": [],
+        "semantics": {
+          "nav": true,
+          "footer": true
+        }
+      },
+      "screenshot_desktop": "spider_test_output\\desktop_page_02.png",
+      "screenshot_mobile": "spider_test_output\\mobile_page_02.png"
+    },
+    {
+      "step": 3,
+      "url": "https://quotes.toscrape.com/tag/truth/",
+      "name": "Quotes to Scrape",
+      "ia": {
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Quotes to Scrape"
+          },
+          {
+            "level": "h3",
+            "text": "Viewing tag: truth"
+          },
+          {
+            "level": "h2",
+            "text": "Top Ten tags"
+          }
+        ],
+        "links": [],
+        "semantics": {
+          "nav": true,
+          "footer": true
+        }
+      },
+      "screenshot_desktop": "spider_test_output\\desktop_page_03.png",
+      "screenshot_mobile": "spider_test_output\\mobile_page_03.png"
+    }
+  ]
+}
