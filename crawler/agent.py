@@ -1,6 +1,7 @@
 import os
 import json
 import subprocess
+import tempfile
 from crawler.config import log, DEFAULT_MODEL
 
 async def check_opencode() -> bool:
@@ -12,9 +13,15 @@ async def check_opencode() -> bool:
 
 async def ask_opencode(prompt: str, model: str = DEFAULT_MODEL) -> str:
     log(f"Querying {model}...", "AI")
+    
+    # Use a temp file to avoid Windows CMD character limits ([WinError 206])
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", delete=False, suffix=".md") as f:
+        f.write(prompt)
+        tmp_path = f.name
+        
     try:
         res = subprocess.run(
-            ["opencode", "run", "-m", model, prompt],
+            ["opencode", "run", "-m", model, "-f", tmp_path, "Follow the instructions in the attached file."],
             capture_output=True,
             text=True,
             timeout=180,
@@ -27,6 +34,12 @@ async def ask_opencode(prompt: str, model: str = DEFAULT_MODEL) -> str:
     except Exception as e:
         log(f"AI Exception: {e}", "ERROR")
         return ""
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except:
+                pass
 
 def extract_json_block(text: str) -> str:
     start = text.find("```json")
