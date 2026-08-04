@@ -57,10 +57,7 @@ async def worker(worker_id: int, queue: asyncio.Queue, visited: set, site_graph:
     await page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "stylesheet", "media", "font"] else route.continue_())
     
     while True:
-        try:
-            current_url = queue.get_nowait()
-        except asyncio.QueueEmpty:
-            break
+        current_url = await queue.get()
             
         if len(visited) >= max_pages:
             queue.task_done()
@@ -154,12 +151,14 @@ async def run_ux_ia(start_url: str, output_dir: str, model: str = DEFAULT_MODEL,
         ]
         
         # We must wait for the queue to be fully processed or visited hits max_pages
-        while not queue.empty() and len(visited) < max_pages:
-            await asyncio.sleep(1)
-            # Wake up dead workers if queue has items (since they exit when queue empty)
-            for i in range(CONCURRENCY):
-                if workers[i].done() and not queue.empty() and len(visited) < max_pages:
-                    workers[i] = asyncio.create_task(worker(i, queue, visited, site_graph, context, start_url, max_pages))
+        join_task = asyncio.create_task(queue.join())
+        
+        while True:
+            if len(visited) >= max_pages:
+                break
+            if join_task.done():
+                break
+            await asyncio.sleep(0.5)
 
         # Cancel remaining workers once done
         for w in workers:
