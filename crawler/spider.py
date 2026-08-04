@@ -12,9 +12,6 @@ def get_same_domain_links(base_url, hrefs):
     base_domain = urlparse(base_url).netloc
     valid_links = set()
     
-    # Skip pages that ask for details to enter (forms, logins, checkouts)
-    skip_keywords = ['login', 'signup', 'register', 'auth', 'signin', 'checkout', 'cart', 'password', 'account']
-    
     for href in hrefs:
         if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
             continue
@@ -22,11 +19,6 @@ def get_same_domain_links(base_url, hrefs):
         if urlparse(full_url).netloc == base_domain:
             # strip fragments
             full_url = full_url.split('#')[0]
-            
-            # Skip if it matches a form/auth keyword
-            if any(kw in full_url.lower() for kw in skip_keywords):
-                continue
-                
             valid_links.add(full_url)
     return list(valid_links)
 
@@ -79,15 +71,21 @@ async def run_spider(start_url: str, output_dir: str, full_page: bool = True, de
                 # 2. Extract UX Information Architecture
                 ia_data = await extract_information_architecture(page)
                 
-                # 3. Extract Links for Queue
-                hrefs = await page.evaluate("""() => {
-                    return Array.from(document.querySelectorAll('a')).map(a => a.getAttribute('href')).filter(Boolean);
-                }""")
+                # 3. Extract Links for Queue (Skip for auth/form pages)
+                skip_keywords = ['login', 'signup', 'register', 'auth', 'signin', 'checkout', 'cart', 'password', 'account']
+                is_auth_page = any(kw in current_url.lower() for kw in skip_keywords)
                 
-                new_links = get_same_domain_links(start_url, hrefs)
-                for link in new_links:
-                    if link not in visited and link not in queue:
-                        queue.append(link)
+                if not is_auth_page:
+                    hrefs = await page.evaluate("""() => {
+                        return Array.from(document.querySelectorAll('a')).map(a => a.getAttribute('href')).filter(Boolean);
+                    }""")
+                    
+                    new_links = get_same_domain_links(start_url, hrefs)
+                    for link in new_links:
+                        if link not in visited and link not in queue:
+                            queue.append(link)
+                else:
+                    log("Auth/form page detected. Captured screenshot, but skipping link extraction to prevent loops.", "INFO")
                 
                 # Record step
                 step_data = {
