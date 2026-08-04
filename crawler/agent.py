@@ -21,7 +21,7 @@ async def ask_opencode(prompt: str, model: str = DEFAULT_MODEL) -> str:
         
     try:
         res = subprocess.run(
-            ["opencode", "run", "-m", model, "-f", tmp_path, "Follow the instructions in the attached file."],
+            ["opencode", "run", "Follow the instructions in the attached file.", "-m", model, "-f", tmp_path],
             capture_output=True,
             text=True,
             timeout=180,
