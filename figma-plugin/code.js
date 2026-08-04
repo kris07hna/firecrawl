@@ -133,12 +133,72 @@ figma.ui.onmessage = async (msg) => {
       
       // Add label above the group
       await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+      await figma.loadFontAsync({ family: "Inter", style: "Bold" });
       const text = figma.createText();
       text.characters = page.url || page.title || page.id || "Unknown Page";
       text.fontSize = 32;
+      text.fontName = { family: "Inter", style: "Bold" };
       text.x = xOffset;
       text.y = -60;
       elementsToGroup.push(text);
+      
+      // Render UX Information Architecture (IA) Panel below the screenshots
+      if (page.ia) {
+          const iaFrame = figma.createFrame();
+          iaFrame.name = "Information Architecture";
+          // Find max height of the screenshots to place IA below them
+          let maxH = 0;
+          if (desktopData) maxH = Math.max(maxH, desktopData.height);
+          if (mobileData) maxH = Math.max(maxH, mobileData.height);
+          
+          iaFrame.x = xOffset;
+          iaFrame.y = maxH + 40;
+          iaFrame.layoutMode = "VERTICAL";
+          iaFrame.itemSpacing = 12;
+          iaFrame.paddingTop = 24;
+          iaFrame.paddingBottom = 24;
+          iaFrame.paddingLeft = 24;
+          iaFrame.paddingRight = 24;
+          iaFrame.cornerRadius = 16;
+          iaFrame.fills = [{ type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.97 } }];
+          
+          const iaTitle = figma.createText();
+          iaTitle.characters = "Information Architecture (IA)";
+          iaTitle.fontSize = 24;
+          iaTitle.fontName = { family: "Inter", style: "Bold" };
+          iaFrame.appendChild(iaTitle);
+          
+          if (page.ia.headings && page.ia.headings.length > 0) {
+              const hTitle = figma.createText();
+              hTitle.characters = "Headings:";
+              hTitle.fontSize = 18;
+              hTitle.fontName = { family: "Inter", style: "Bold" };
+              iaFrame.appendChild(hTitle);
+              
+              for (const h of page.ia.headings.slice(0, 10)) {
+                  const hText = figma.createText();
+                  hText.characters = `${h.level.toUpperCase()}: ${h.text}`;
+                  hText.fontSize = 16;
+                  iaFrame.appendChild(hText);
+              }
+          }
+          
+          if (page.ia.semantics) {
+              const sTitle = figma.createText();
+              sTitle.characters = "Semantic Regions Detected:";
+              sTitle.fontSize = 18;
+              sTitle.fontName = { family: "Inter", style: "Bold" };
+              iaFrame.appendChild(sTitle);
+              
+              const tags = Object.keys(page.ia.semantics).join(", ");
+              const sText = figma.createText();
+              sText.characters = tags || "None";
+              sText.fontSize = 16;
+              iaFrame.appendChild(sText);
+          }
+          
+          elementsToGroup.push(iaFrame);
+      }
       
       // Group them together
       const group = figma.group(elementsToGroup, figma.currentPage);
