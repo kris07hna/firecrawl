@@ -27,7 +27,13 @@ async def run_crawler(start_url: str, goal: str, output_dir: str, model: str = D
             browser, context = await make_context(pw, vp_name)
             page = await context.new_page()
             
-            await page.goto(start_url, wait_until="domcontentloaded")
+            try:
+                # Increase timeout to 60s and ignore timeout errors. 
+                # Many enterprise sites hang on 3rd party scripts, but the DOM is already loaded.
+                await page.goto(start_url, wait_until="domcontentloaded", timeout=60000)
+            except Exception as e:
+                log(f"Navigation timeout/error (ignoring): {e}", "WARN")
+                
             await settle_page(page)
             
             history = []
