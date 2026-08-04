@@ -41,8 +41,10 @@ figma.ui.onmessage = async (msg) => {
       let imgBuffer = null;
       
       // Look for explicit screenshot filename in the JSON
-      if (page.screenshot && images[page.screenshot]) {
-         imgBuffer = images[page.screenshot];
+      const targetScreenshot = page.screenshot_desktop || page.screenshot_mobile || page.screenshot;
+      
+      if (targetScreenshot && images[targetScreenshot]) {
+         imgBuffer = images[targetScreenshot];
       } else {
          // Fuzzy match based on URL or ID
          const searchKey = (page.url || page.id || page.title || '').replace(/[^a-z0-9]/gi, '_').substring(0, 30);
@@ -53,8 +55,8 @@ figma.ui.onmessage = async (msg) => {
            }
          }
          // Ultimate fallback: Just grab the first image if this is a fallback node
-         if (!imgBuffer && page.screenshot && images[page.screenshot]) {
-            imgBuffer = images[page.screenshot];
+         if (!imgBuffer && targetScreenshot && images[targetScreenshot]) {
+            imgBuffer = images[targetScreenshot];
          }
       }
 
