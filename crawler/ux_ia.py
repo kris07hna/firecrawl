@@ -86,37 +86,120 @@ async def worker(worker_id: int, queue: asyncio.Queue, visited: set, site_graph:
             
             ia_data = await extract_information_architecture(page)
             
-            link_objects = await page.evaluate("""() => {
-                const getLoc = (el) => {
-                    if (el.closest('header, nav, [role="navigation"]')) return 'header';
-                    if (el.closest('footer, [role="contentinfo"]')) return 'footer';
-                    return 'body';
+            # Organized Visual Hierarchy Extraction
+            categorized_links = await page.evaluate("""() => {
+                const getHeadingText = (el) => {
+                    let current = el;
+                    while (current && current !== document.body) {
+                        let prev = current.previousElementSibling;
+                        while(prev) {
+                            if (['H1','H2','H3','H4','H5','H6'].includes(prev.tagName) || prev.getAttribute('role') === 'heading') {
+                                return prev.innerText.trim();
+                            }
+                            prev = prev.previousElementSibling;
+                        }
+                        const heading = current.querySelector('h1, h2, h3, h4, h5, h6, strong, [role="heading"], .title, .heading');
+                        if (heading && heading !== el) return heading.innerText.trim();
+                        current = current.parentElement;
+                    }
+                    return "General Links";
                 };
-                return Array.from(document.querySelectorAll('a')).map(a => ({
-                    href: a.getAttribute('href'),
-                    text: (a.innerText || a.textContent || '').trim().substring(0, 50),
-                    location: getLoc(a)
-                })).filter(a => a.href);
+
+                const getLoc = (el) => {
+                    if (el.closest('header, nav, [role="navigation"]')) return 'Header';
+                    if (el.closest('footer, [role="contentinfo"]')) return 'Footer';
+                    return 'Body';
+                };
+
+                const isButton = (el) => {
+                    if (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button' || el.classList.contains('button') || el.classList.contains('btn')) return true;
+                    const style = window.getComputedStyle(el);
+                    if (style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.padding !== '0px' && style.borderRadius !== '0px') return true;
+                    return false;
+                };
+
+                const elements = Array.from(document.querySelectorAll('a, button'));
+                
+                let structure = {
+                    Header: { Buttons: [], Dropdowns: {} },
+                    Body: { Buttons: [], Sections: {} },
+                    Footer: { Columns: {} }
+                };
+
+                elements.forEach(el => {
+                    const text = (el.innerText || el.textContent || '').trim().substring(0, 40);
+                    if (!text) return;
+                    
+                    const loc = getLoc(el);
+                    const href = el.getAttribute('href') || null;
+                    if (href && (href.startsWith('javascript:') || href.startsWith('#'))) return;
+
+                    const isBtn = isButton(el);
+                    const item = { text, href };
+
+                    if (loc === 'Header') {
+                        if (isBtn) {
+                            structure.Header.Buttons.push(item);
+                        } else {
+                            const dropdownParent = el.closest('ul, ol, [role="menu"], [role="listbox"], .dropdown, .menu, nav div');
+                            const dropdownName = dropdownParent ? getHeadingText(dropdownParent) : "Main Nav";
+                            if (!structure.Header.Dropdowns[dropdownName]) structure.Header.Dropdowns[dropdownName] = [];
+                            if (!structure.Header.Dropdowns[dropdownName].find(i => i.text === text)) {
+                                structure.Header.Dropdowns[dropdownName].push(item);
+                            }
+                        }
+                    } else if (loc === 'Footer') {
+                        const colParent = el.closest('div, section, ul');
+                        const colName = colParent ? getHeadingText(colParent) : "Legal/Utility";
+                        if (!structure.Footer.Columns[colName]) structure.Footer.Columns[colName] = [];
+                        if (!structure.Footer.Columns[colName].find(i => i.text === text)) {
+                            structure.Footer.Columns[colName].push(item);
+                        }
+                    } else {
+                        if (isBtn) {
+                            structure.Body.Buttons.push(item);
+                        } else {
+                            const secParent = el.closest('section, article, div.section');
+                            const secName = secParent ? getHeadingText(secParent) : "In-Page Links";
+                            if (!structure.Body.Sections[secName]) structure.Body.Sections[secName] = [];
+                            if (!structure.Body.Sections[secName].find(i => i.text === text)) {
+                                structure.Body.Sections[secName].push(item);
+                            }
+                        }
+                    }
+                });
+                
+                if (structure.Header.Buttons.length === 0) delete structure.Header.Buttons;
+                if (structure.Body.Buttons.length === 0) delete structure.Body.Buttons;
+
+                return structure;
             }""")
             
-            categorized_links = {"header": [], "footer": [], "body": []}
+            # Extract URLs to continue crawling
+            def get_hrefs(d):
+                urls = []
+                if isinstance(d, dict):
+                    for k, v in d.items():
+                        if k == 'href' and isinstance(v, str):
+                            urls.append(v)
+                        else:
+                            urls.extend(get_hrefs(v))
+                elif isinstance(d, list):
+                    for i in d:
+                        urls.extend(get_hrefs(i))
+                return urls
             
-            for obj in link_objects:
-                full_url = urljoin(current_url, obj.get("href", "")).split('#')[0]
-                if is_valid_link(start_url, full_url):
-                    # Add to graph
-                    if not any(l["url"] == full_url for l in categorized_links[obj["location"]]):
-                        categorized_links[obj["location"]].append({"url": full_url, "text": obj["text"]})
-                    # Add to queue
-                    if full_url not in visited:
-                        # Only add if not already in queue (basic check)
-                        queue.put_nowait(full_url)
+            hrefs = get_hrefs(categorized_links)
+            for href in hrefs:
+                full_url = urljoin(current_url, href).split('#')[0]
+                if is_valid_link(start_url, full_url) and full_url not in visited:
+                    queue.put_nowait(full_url)
                         
             title = await page.title()
             site_graph[current_url] = {
                 "title": title,
                 "ia": ia_data,
-                "links": categorized_links
+                "visual_hierarchy": categorized_links
             }
             
         except Exception as e:
@@ -179,13 +262,14 @@ async def run_ux_ia(start_url: str, output_dir: str, model: str = DEFAULT_MODEL,
     prompt = f"""
 You are a Senior UX Engineer analyzing the Information Architecture of a website.
 We performed an exhaustive deep-crawl utilizing Mega-Menu extraction on every page.
-Below is the raw JSON data containing the Title, Semantic Headings, and all internal links found inside the Header (Mega-Menu), Body, and Footer for each page.
+Below is the highly structured Semantic Visual Hierarchy extracted from the website.
+Instead of raw links, the data is grouped visually by Header Dropdowns, Footer Columns, and Body Sections for each page.
 
-Synthesize this raw data into a clean, professional Information Architecture overview in Markdown format.
+Synthesize this hierarchical data into a clean, professional Information Architecture overview in Markdown format.
 You must include:
-1. Executive UX Overview: A written analysis of the site's structure based on the Mega-Menu and deep page hierarchy. Highlight UX patterns and groupings.
-2. Mermaid Diagram: A perfectly formatted Mermaid `mindmap` or `flowchart TD` representing the site's hierarchy (do not include every single utility/footer link, summarize logically).
-3. Categorized Page List: Group the core pages found in the crawl into logical UX categories (e.g. Primary Navigation, Utilities, Auth Flows, Content Hubs).
+1. Executive UX Overview: A written analysis of the site's structure based on the visually grouped Dropdowns and Columns.
+2. Mermaid Diagram: A perfectly formatted Mermaid `mindmap` or `flowchart TD` representing the logical hierarchy of the site's Dropdowns and Categories (do not list raw URLs).
+3. Section Map: A breakdown of the primary Header and Footer categories and what they contain.
 
 Raw Data:
 {json.dumps(site_graph)}
