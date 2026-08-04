@@ -50,6 +50,35 @@ async def run_crawler(start_url: str, goal: str, output_dir: str, model: str = D
                 ia_data = await extract_information_architecture(page)
                 current_url = page.url
                 
+                # Extract interactive elements for the AI to click
+                elements = await page.evaluate("""() => {
+                    const els = [];
+                    document.querySelectorAll('a, button').forEach((el, index) => {
+                        const text = (el.innerText || el.textContent || '').trim().substring(0, 50);
+                        if (!text) return;
+                        
+                        let selector = el.tagName.toLowerCase();
+                        if (el.id) {
+                            selector += '#' + el.id;
+                        } else if (el.className && typeof el.className === 'string') {
+                            selector += '.' + el.className.split(' ').join('.');
+                        } else if (el.getAttribute('href')) {
+                            selector += `[href="${el.getAttribute('href')}"]`;
+                        } else {
+                            // Provide a unique index-based selector fallback for the AI
+                            el.setAttribute('data-ai-id', `ai-el-${index}`);
+                            selector += `[data-ai-id="ai-el-${index}"]`;
+                        }
+                        
+                        els.push({
+                            type: el.tagName.toLowerCase(),
+                            text: text,
+                            selector: selector
+                        });
+                    });
+                    return els;
+                }""")
+                
                 # Record step
                 step_data = {
                     "step": step,
@@ -65,7 +94,7 @@ async def run_crawler(start_url: str, goal: str, output_dir: str, model: str = D
                 page_state = {
                     "url": current_url,
                     "ia": ia_data,
-                    # We would add interactive elements extraction here for the AI to click
+                    "elements": elements
                 }
                 
                 action = await synthesize_complex_goal(goal, page_state, history)
