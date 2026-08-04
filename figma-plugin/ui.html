@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 20px;
+    background-color: #f5f5f5;
+  }
+  h2 {
+    font-size: 16px;
+    margin-top: 0;
+  }
+  .drop-zone {
+    border: 2px dashed #18A0FB;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .drop-zone:hover {
+    background: #e5f4ff;
+  }
+  .instructions {
+    font-size: 12px;
+    color: #666;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+  <h2>Import Open Design Flow</h2>
+  <div class="drop-zone" id="drop-zone">
+    Click here to select the unzipped output folder<br/>(Select all the images and the JSON files)
+    <input type="file" id="file-input" multiple style="display:none;" />
+  </div>
+  <div class="instructions">
+    Wait a moment for Figma to process the images after selecting.
+  </div>
+
+<script>
+  const fileInput = document.getElementById('file-input');
+  document.getElementById('drop-zone').onclick = () => fileInput.click();
+  
+  fileInput.onchange = async (e) => {
+    const files = Array.from(e.target.files);
+    let sitemap = null;
+    let images = {}; // filename -> Uint8Array
+    
+    // Parse all dropped files
+    for (const file of files) {
+      if (file.name.includes('.json')) {
+        const text = await file.text();
+        try {
+          sitemap = JSON.parse(text);
+        } catch(err) {
+          console.error("Failed to parse JSON", file.name);
+        }
+      } else if (file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg')) {
+        const buffer = await file.arrayBuffer();
+        images[file.name] = new Uint8Array(buffer);
+      }
+    }
+    
+    if (sitemap) {
+      // Send the parsed json and image buffers to the figma plugin sandbox
+      parent.postMessage({ pluginMessage: { type: 'import', sitemap, images } }, '*');
+    } else {
+      alert("No JSON file found! Make sure you selected the sitemap or userflow JSON file.");
+    }
+  };
+</script>
+</body>
+</html>
