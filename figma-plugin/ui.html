@@ -61,7 +61,7 @@
       } else if (file.name.match(/\.(png|jpg|jpeg)$/i)) {
         const buffer = await file.arrayBuffer();
         
-        // Downscale image if it exceeds Figma's 4096px dimension limit
+        // Load image to check dimensions
         const blob = new Blob([buffer], { type: file.type || 'image/png' });
         const url = URL.createObjectURL(blob);
         const img = new Image();
@@ -72,21 +72,41 @@
           img.src = url;
         });
         
-        const MAX_SIZE = 4000;
-        if (img.width > MAX_SIZE || img.height > MAX_SIZE) {
-           const scale = Math.min(MAX_SIZE / img.width, MAX_SIZE / img.height);
-           const canvas = document.createElement('canvas');
-           canvas.width = img.width * scale;
-           canvas.height = img.height * scale;
-           const ctx = canvas.getContext('2d');
-           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-           
-           const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-           const newBuffer = await newBlob.arrayBuffer();
-           images[file.name] = new Uint8Array(newBuffer);
-        } else {
-           images[file.name] = new Uint8Array(buffer);
+        const MAX_DIM = 4000;
+        let chunks = [];
+        
+        // If width exceeds 4000, we must scale it down (extremely rare for web pages)
+        const scale = img.width > MAX_DIM ? (MAX_DIM / img.width) : 1;
+        const finalWidth = img.width * scale;
+        const finalHeight = img.height * scale;
+        
+        // Slice the image vertically into chunks of max 4000px height
+        const numChunks = Math.ceil(finalHeight / MAX_DIM);
+        
+        for (let i = 0; i < numChunks; i++) {
+            const chunkHeight = Math.min(MAX_DIM, finalHeight - (i * MAX_DIM));
+            const canvas = document.createElement('canvas');
+            canvas.width = finalWidth;
+            canvas.height = chunkHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // source Y offset (unscaled)
+            const sy = (i * MAX_DIM) / scale;
+            const sh = chunkHeight / scale;
+            
+            ctx.drawImage(img, 0, sy, img.width, sh, 0, 0, finalWidth, chunkHeight);
+            
+            const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            const newBuffer = await newBlob.arrayBuffer();
+            chunks.push(new Uint8Array(newBuffer));
         }
+        
+        images[file.name] = {
+            width: finalWidth,
+            height: finalHeight,
+            chunks: chunks
+        };
+        
         URL.revokeObjectURL(url);
       }
     }

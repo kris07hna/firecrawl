@@ -39,89 +39,117 @@ figma.ui.onmessage = async (msg) => {
     const imageCount = Object.keys(images).length;
     figma.notify(`Importing ${nodes.length} pages and ${imageCount} screenshots...`);
     
-    // 2. Load images into Figma and create rectangles
-    for (const page of nodes) {
-      // Find matching image buffer
-      let imgBuffer = null;
-      
-      // Look for explicit screenshot filename in the JSON
-      let targetScreenshot = page.screenshot_desktop || page.screenshot_mobile || page.screenshot;
-      if (targetScreenshot) {
-          // Extract just the filename (remove output directory path)
-          targetScreenshot = targetScreenshot.split('/').pop().split('\\').pop();
-      }
-      
-      if (targetScreenshot && images[targetScreenshot]) {
-         imgBuffer = images[targetScreenshot];
-      } else if (targetScreenshot) {
-         // Fallback to substring matching if exact match fails
-         for (const [filename, buffer] of Object.entries(images)) {
-             if (filename.includes(targetScreenshot) || targetScreenshot.includes(filename)) {
-                 imgBuffer = buffer;
-                 break;
-             }
-         }
-      }
-      
-      if (!imgBuffer) {
-         // Fuzzy match based on URL or ID
-         const searchKey = (page.url || page.id || page.title || '').replace(/[^a-z0-9]/gi, '_').substring(0, 30);
-         for (const [filename, buffer] of Object.entries(images)) {
-           if (filename.includes(searchKey)) {
-             imgBuffer = buffer;
-             break;
-           }
-         }
-         // Ultimate fallback: Just grab the first image if this is a fallback node
-         if (!imgBuffer && targetScreenshot && images[targetScreenshot]) {
-            imgBuffer = images[targetScreenshot];
-         }
-      }
-
-      // Create the visual node in Figma
-      const rect = figma.createRectangle();
-      
-      // Use Excalidraw coordinates if they exist, otherwise arrange horizontally
-      rect.x = page.x !== undefined ? page.x : xOffset;
-      rect.y = page.y !== undefined ? page.y : 0;
-      
-      // Set size
-      rect.resize(page.width || 400, page.height || 800);
-      
-      // Set the image fill
-      if (imgBuffer) {
-        try {
-            const uint8Array = new Uint8Array(imgBuffer);
-            const imageHash = figma.createImage(uint8Array).hash;
-            rect.fills = [{ type: 'IMAGE', scaleMode: 'FIT', imageHash }];
-        } catch (e) {
-            figma.notify(`Error loading image for ${page.url}: ${e.message}`);
-            rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 } }]; // Red if error
+    function findImgData(targetName) {
+        if (!targetName) return null;
+        if (images[targetName]) return images[targetName];
+        for (const [filename, data] of Object.entries(images)) {
+            if (filename.includes(targetName) || targetName.includes(filename)) {
+                return data;
+            }
         }
-      } else {
-        // Fallback color if image is missing
-        rect.fills = [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.9 } }];
+        return null;
+    }
+
+    for (const page of nodes) {
+      let targetDesktop = page.screenshot_desktop ? page.screenshot_desktop.split('/').pop().split('\\').pop() : null;
+      let targetMobile = page.screenshot_mobile ? page.screenshot_mobile.split('/').pop().split('\\').pop() : null;
+      
+      let desktopData = findImgData(targetDesktop);
+      let mobileData = findImgData(targetMobile);
+      
+      // Ultimate fallback for missing sitemap references
+      if (!desktopData && !mobileData) {
+          const searchKey = (page.url || page.id || page.title || '').replace(/[^a-z0-9]/gi, '_').substring(0, 30);
+          desktopData = findImgData(searchKey);
       }
       
-      // Add a label above the screenshot
+      const elementsToGroup = [];
+      let currentX = xOffset;
+      
+      // Draw Desktop
+      if (desktopData) {
+          const frame = figma.createFrame();
+          frame.name = "Desktop";
+          frame.x = currentX;
+          frame.y = 0;
+          frame.resize(desktopData.width, desktopData.height);
+          frame.layoutMode = "VERTICAL";
+          frame.itemSpacing = 0;
+          frame.fills = []; // Transparent
+          
+          for (let i = 0; i < desktopData.chunks.length; i++) {
+              const chunkHeight = Math.min(4000, desktopData.height - (i * 4000));
+              const rect = figma.createRectangle();
+              rect.resize(desktopData.width, chunkHeight);
+              try {
+                  const imageHash = figma.createImage(new Uint8Array(desktopData.chunks[i])).hash;
+                  rect.fills = [{ type: 'IMAGE', scaleMode: 'FILL', imageHash }];
+              } catch (e) {
+                  rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 } }];
+              }
+              frame.appendChild(rect);
+          }
+          elementsToGroup.push(frame);
+          currentX += desktopData.width + 100;
+      }
+      
+      // Draw Mobile
+      if (mobileData) {
+          const frame = figma.createFrame();
+          frame.name = "Mobile";
+          frame.x = currentX;
+          frame.y = 0;
+          frame.resize(mobileData.width, mobileData.height);
+          frame.layoutMode = "VERTICAL";
+          frame.itemSpacing = 0;
+          frame.fills = [];
+          
+          for (let i = 0; i < mobileData.chunks.length; i++) {
+              const chunkHeight = Math.min(4000, mobileData.height - (i * 4000));
+              const rect = figma.createRectangle();
+              rect.resize(mobileData.width, chunkHeight);
+              try {
+                  const imageHash = figma.createImage(new Uint8Array(mobileData.chunks[i])).hash;
+                  rect.fills = [{ type: 'IMAGE', scaleMode: 'FILL', imageHash }];
+              } catch (e) {
+                  rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 } }];
+              }
+              frame.appendChild(rect);
+          }
+          elementsToGroup.push(frame);
+          currentX += mobileData.width + 100;
+      }
+      
+      // Fallback if no images found
+      if (!desktopData && !mobileData) {
+          const fallback = figma.createRectangle();
+          fallback.x = currentX;
+          fallback.y = 0;
+          fallback.resize(400, 800);
+          fallback.fills = [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.9 } }];
+          elementsToGroup.push(fallback);
+          currentX += 400 + 100;
+      }
+      
+      // Add label above the group
       await figma.loadFontAsync({ family: "Inter", style: "Regular" });
       const text = figma.createText();
       text.characters = page.url || page.title || page.id || "Unknown Page";
-      text.fontSize = 16;
-      text.x = rect.x;
-      text.y = rect.y - 24;
+      text.fontSize = 32;
+      text.x = xOffset;
+      text.y = -60;
+      elementsToGroup.push(text);
       
       // Group them together
-      const group = figma.group([rect, text], figma.currentPage);
+      const group = figma.group(elementsToGroup, figma.currentPage);
       group.name = text.characters;
-      
       figma.currentPage.appendChild(group);
       
       // Store reference for connecting edges later
       const nodeId = page.id || page.url || page.title;
-      if (nodeId) createdNodes[nodeId] = rect;
+      if (nodeId) createdNodes[nodeId] = group;
       
-      xOffset += (page.width || 400) + 200;
+      xOffset = currentX + 300; // Spacing between different pages
     }
     
     // 3. Draw Edges (Interconnections)
