@@ -35,6 +35,10 @@ figma.ui.onmessage = async (msg) => {
     const createdNodes = {};
     let xOffset = 0;
     
+    // Notify the user how many images were received
+    const imageCount = Object.keys(images).length;
+    figma.notify(`Importing ${nodes.length} pages and ${imageCount} screenshots...`);
+    
     // 2. Load images into Figma and create rectangles
     for (const page of nodes) {
       // Find matching image buffer
@@ -86,8 +90,14 @@ figma.ui.onmessage = async (msg) => {
       
       // Set the image fill
       if (imgBuffer) {
-        const imageHash = figma.createImage(imgBuffer).hash;
-        rect.fills = [{ type: 'IMAGE', scaleMode: 'FIT', imageHash }];
+        try {
+            const uint8Array = new Uint8Array(imgBuffer);
+            const imageHash = figma.createImage(uint8Array).hash;
+            rect.fills = [{ type: 'IMAGE', scaleMode: 'FIT', imageHash }];
+        } catch (e) {
+            figma.notify(`Error loading image for ${page.url}: ${e.message}`);
+            rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 } }]; // Red if error
+        }
       } else {
         // Fallback color if image is missing
         rect.fills = [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.9 } }];
