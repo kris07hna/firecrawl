@@ -11,6 +11,10 @@ from crawler.extractor import extract_information_architecture
 def get_same_domain_links(base_url, hrefs):
     base_domain = urlparse(base_url).netloc
     valid_links = set()
+    
+    # Skip pages that ask for details to enter (forms, logins, checkouts)
+    skip_keywords = ['login', 'signup', 'register', 'auth', 'signin', 'checkout', 'cart', 'password', 'account']
+    
     for href in hrefs:
         if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
             continue
@@ -18,6 +22,11 @@ def get_same_domain_links(base_url, hrefs):
         if urlparse(full_url).netloc == base_domain:
             # strip fragments
             full_url = full_url.split('#')[0]
+            
+            # Skip if it matches a form/auth keyword
+            if any(kw in full_url.lower() for kw in skip_keywords):
+                continue
+                
             valid_links.add(full_url)
     return list(valid_links)
 
