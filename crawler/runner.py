@@ -74,17 +74,35 @@ async def run_crawler(start_url: str, goal: str, output_dir: str, model: str = D
                 log(f"AI Action: {action.get('action')} - {action.get('reasoning')}", "AI")
                 
                 # Execute Action
-                if action.get("action") == "DONE":
+                act_type = action.get("action")
+                if act_type == "DONE":
                     log("Goal reached!", "INFO")
                     break
-                elif action.get("action") == "CLICK" and action.get("target_selector"):
+                elif act_type == "CLICK" and action.get("target_selector"):
                     try:
                         await page.click(action["target_selector"], timeout=3000)
                         await settle_page(page)
                     except Exception as e:
                         log(f"Failed to click: {e}", "WARN")
+                elif act_type == "SCROLL":
+                    try:
+                        await page.mouse.wheel(0, 800)
+                        await asyncio.sleep(1)
+                        await settle_page(page, full_scroll=False)
+                    except Exception as e:
+                        log(f"Failed to scroll: {e}", "WARN")
+                elif act_type == "WAIT":
+                    log("AI requested WAIT...", "INFO")
+                    await asyncio.sleep(3)
+                elif act_type == "TYPE" and action.get("target_selector") and action.get("text_to_type"):
+                    try:
+                        await page.fill(action["target_selector"], action["text_to_type"], timeout=3000)
+                        await page.keyboard.press("Enter")
+                        await settle_page(page)
+                    except Exception as e:
+                        log(f"Failed to type: {e}", "WARN")
                 else:
-                    log("Unsupported or no action taken, stopping viewport crawl.", "INFO")
+                    log(f"Unsupported or no action taken ({act_type}), stopping viewport crawl.", "INFO")
                     break
                     
             await browser.close()
