@@ -1,4 +1,4 @@
-name: AI Website Crawler & Flow Mapper
+name: Enterprise Web Flow & UX Mapper
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       goal:
-        description: 'Navigation goal / what to map (e.g. "Map all sections")'
+        description: 'Navigation goal / what to map (e.g. "Order a brand bag" or "Map all sections")'
         required: true
         type: string
       viewport:
@@ -25,6 +25,11 @@ on:
         required: false
         default: true
         type: boolean
+      max_steps:
+        description: 'Maximum number of steps/clicks the AI can perform per viewport'
+        required: false
+        default: '10'
+        type: string
       model:
         description: 'OpenCode model to use'
         required: true
@@ -57,7 +62,6 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          # Ensure playwright and other standard libraries used in your script are installed
           pip install playwright nest_asyncio
 
       - name: Install Playwright Browsers
@@ -68,7 +72,7 @@ jobs:
         run: |
           npm install -g opencode-ai
 
-      - name: Run AI Website Crawler
+      - name: Run Enterprise AI Crawler
         run: |
           # Build dynamic flags based on workflow inputs
           VIEWPORT_FLAG=""
@@ -83,17 +87,18 @@ jobs:
             FULLPAGE_FLAG="--full-page"
           fi
           
-          # Run the crawler
+          # Run the modular enterprise crawler
           python crawl_map_ai.py \
             --url "${{ inputs.url }}" \
             --goal "${{ inputs.goal }}" \
             --model "${{ inputs.model }}" \
+            --max-steps "${{ inputs.max_steps }}" \
             --output-dir "screenshots_ai_output" \
             $VIEWPORT_FLAG $FULLPAGE_FLAG
 
       - name: Upload Output Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: AI-User-Flow-Map
+          name: Enterprise-UX-Flow-Map
           path: screenshots_ai_output/
           retention-days: 7
