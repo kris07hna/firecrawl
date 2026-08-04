@@ -975,9 +975,10 @@ async def crawl_viewport(
                     f"Enterprise web crawler — goal: '{goal}'\n"
                     f"Current URL: {page.url}\nStep: {step}\n"
                     f"Remaining nav queue: {[l['text'] for l in nav_queue[:5]]}\n"
+                    f"Already visited URLs: {list(local_visited)}\n"
                     f"Interactive elements (first 60):\n{json.dumps(elements[:60])}\n\n"
                     f"Select the BEST next action to map all major website sections.\n"
-                    f"Prefer navigating to unvisited nav sections over clicking random elements.\n"
+                    f"Prefer navigating to unvisited nav sections over clicking random elements. DO NOT navigate to an already visited URL.\n"
                     f"Respond ONLY with JSON:\n"
                     f'{{"thought":"...", "action":"click"|"navigate"|"done", "id":<int>, "value":"<url if navigate>"}}'
                 )
@@ -1009,12 +1010,12 @@ async def crawl_viewport(
                 if action == "navigate":
                     dest = action_choice.get("value", "")
                     if not dest:
-                        step -= 1
-                        continue
+                        log("Invalid navigate destination, defaulting to done.", "WARN")
+                        break
                     clean = dest.split("?")[0].rstrip("/")
                     if clean in local_visited:
-                        step -= 1
-                        continue
+                        log(f"AI chose already visited URL: {dest}, forcing heuristic or done.", "WARN")
+                        break
                     log(f"[{step}] Navigate → {dest}", "NAV")
                     await page.goto(dest, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
                     await settle_page(page, full_scroll=full_page)
@@ -1042,8 +1043,8 @@ async def crawl_viewport(
                         await page.bring_to_front()
 
                 else:
-                    step -= 1
-                    continue
+                    log("AI chose invalid action, forcing done to prevent infinite loop.", "WARN")
+                    break
 
                 new_url = page.url
                 new_clean = new_url.split("?")[0].rstrip("/")
