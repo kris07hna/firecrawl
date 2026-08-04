@@ -58,9 +58,36 @@
         } catch(err) {
           console.error("Failed to parse JSON", file.name);
         }
-      } else if (file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg')) {
+      } else if (file.name.match(/\.(png|jpg|jpeg)$/i)) {
         const buffer = await file.arrayBuffer();
-        images[file.name] = new Uint8Array(buffer);
+        
+        // Downscale image if it exceeds Figma's 4096px dimension limit
+        const blob = new Blob([buffer], { type: file.type || 'image/png' });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = url;
+        });
+        
+        const MAX_SIZE = 4000;
+        if (img.width > MAX_SIZE || img.height > MAX_SIZE) {
+           const scale = Math.min(MAX_SIZE / img.width, MAX_SIZE / img.height);
+           const canvas = document.createElement('canvas');
+           canvas.width = img.width * scale;
+           canvas.height = img.height * scale;
+           const ctx = canvas.getContext('2d');
+           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+           
+           const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+           const newBuffer = await newBlob.arrayBuffer();
+           images[file.name] = new Uint8Array(newBuffer);
+        } else {
+           images[file.name] = new Uint8Array(buffer);
+        }
+        URL.revokeObjectURL(url);
       }
     }
     
