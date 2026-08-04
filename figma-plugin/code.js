@@ -41,11 +41,25 @@ figma.ui.onmessage = async (msg) => {
       let imgBuffer = null;
       
       // Look for explicit screenshot filename in the JSON
-      const targetScreenshot = page.screenshot_desktop || page.screenshot_mobile || page.screenshot;
+      let targetScreenshot = page.screenshot_desktop || page.screenshot_mobile || page.screenshot;
+      if (targetScreenshot) {
+          // Extract just the filename (remove output directory path)
+          targetScreenshot = targetScreenshot.split('/').pop().split('\\').pop();
+      }
       
       if (targetScreenshot && images[targetScreenshot]) {
          imgBuffer = images[targetScreenshot];
-      } else {
+      } else if (targetScreenshot) {
+         // Fallback to substring matching if exact match fails
+         for (const [filename, buffer] of Object.entries(images)) {
+             if (filename.includes(targetScreenshot) || targetScreenshot.includes(filename)) {
+                 imgBuffer = buffer;
+                 break;
+             }
+         }
+      }
+      
+      if (!imgBuffer) {
          // Fuzzy match based on URL or ID
          const searchKey = (page.url || page.id || page.title || '').replace(/[^a-z0-9]/gi, '_').substring(0, 30);
          for (const [filename, buffer] of Object.entries(images)) {
