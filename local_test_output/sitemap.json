@@ -1,0 +1,64 @@
+{
+  "version": "3.0.0",
+  "generated_at": "2026-08-04T07:35:00.809987+00:00",
+  "start_url": "https://www.flipkart.com/",
+  "goal": "Order a oppo a38 phone",
+  "pages": [
+    {
+      "step": 1,
+      "url": "https://www.flipkart.com/",
+      "name": "Online Shopping Site for Mobiles, Electronics, Furniture, Grocery, Lifestyle, Books & More. Best Offers!",
+      "ia": {
+        "headings": [
+          {
+            "level": "h1",
+            "text": "Flipkart: India's Ultimate One-Stop Online Shopping Destination"
+          },
+          {
+            "level": "h2",
+            "text": "What Can You Buy from Flipkart?"
+          },
+          {
+            "level": "h2",
+            "text": "Flipkart Loyalty and Rewards Program"
+          },
+          {
+            "level": "h2",
+            "text": "Payment and Affordability: Shop Smart, Pay Smarter"
+          },
+          {
+            "level": "h2",
+            "text": "Flipkart Flights: Book Your Next Getaway Effortlessly"
+          },
+          {
+            "level": "h2",
+            "text": "Flipkart Minutes: Groceries and Gadgets in a Flash"
+          },
+          {
+            "level": "h2",
+            "text": "Flipkart Reset and Exchange Program: Trade-in Your Old Device"
+          },
+          {
+            "level": "h2",
+            "text": "Flipkart Kilos: Your Online Grocery Supermarket"
+          },
+          {
+            "level": "h2",
+            "text": "Why Choose Flipkart? The Unbeatable Advantages"
+          },
+          {
+            "level": "h2",
+            "text": "Get Exclusive Offers and Deals in Popular Sale Events"
+          }
+        ],
+        "links": [],
+        "semantics": {
+          "header": true,
+          "footer": true
+        }
+      },
+      "screenshot_desktop": "local_test_output\\desktop_step_01.png",
+      "screenshot_mobile": "local_test_output\\mobile_step_01.png"
+    }
+  ]
+}

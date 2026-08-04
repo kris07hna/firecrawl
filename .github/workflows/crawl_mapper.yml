@@ -28,6 +28,14 @@ on:
         required: false
         default: true
         type: boolean
+      mode:
+        description: 'Crawler Mode'
+        required: true
+        default: 'flow'
+        type: choice
+        options:
+          - 'flow'
+          - 'spider'
       max_steps:
         description: 'Maximum number of steps/clicks the AI can perform per viewport'
         required: false
@@ -104,6 +112,7 @@ jobs:
           python -u crawl_map_ai.py \
             --url "${{ inputs.url }}" \
             --goal "${{ inputs.goal }}" \
+            --mode "${{ inputs.mode }}" \
             --model "${{ inputs.model }}" \
             --max-steps "${{ inputs.max_steps }}" \
             --output-dir "screenshots_ai_output" \
