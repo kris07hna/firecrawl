@@ -1,0 +1,99 @@
+name: AI Website Crawler & Flow Mapper
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Target website URL to map (e.g. https://example.com)'
+        required: true
+        type: string
+      goal:
+        description: 'Navigation goal / what to map (e.g. "Map all sections")'
+        required: true
+        type: string
+      viewport:
+        description: 'Viewport configuration'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - 'both'
+          - 'desktop-only'
+          - 'mobile-only'
+      full_page:
+        description: 'Capture full scrolled-page height (instead of viewport only)'
+        required: false
+        default: true
+        type: boolean
+      model:
+        description: 'OpenCode model to use'
+        required: true
+        default: 'openrouter/nvidia/nemotron-nano-12b-v2-vl:free'
+        type: string
+
+jobs:
+  crawl_and_map:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js (for OpenCode CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install System Dependencies for Playwright
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgbm-dev
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Ensure playwright and other standard libraries used in your script are installed
+          pip install playwright nest_asyncio
+
+      - name: Install Playwright Browsers
+        run: |
+          playwright install --with-deps chromium
+
+      - name: Install OpenCode CLI
+        run: |
+          npm install -g opencode-ai
+
+      - name: Run AI Website Crawler
+        run: |
+          # Build dynamic flags based on workflow inputs
+          VIEWPORT_FLAG=""
+          if [ "${{ inputs.viewport }}" == "desktop-only" ]; then
+            VIEWPORT_FLAG="--desktop-only"
+          elif [ "${{ inputs.viewport }}" == "mobile-only" ]; then
+            VIEWPORT_FLAG="--mobile-only"
+          fi
+          
+          FULLPAGE_FLAG=""
+          if [ "${{ inputs.full_page }}" == "true" ]; then
+            FULLPAGE_FLAG="--full-page"
+          fi
+          
+          # Run the crawler
+          python crawl_map_ai.py \
+            --url "${{ inputs.url }}" \
+            --goal "${{ inputs.goal }}" \
+            --model "${{ inputs.model }}" \
+            --output-dir "screenshots_ai_output" \
+            $VIEWPORT_FLAG $FULLPAGE_FLAG
+
+      - name: Upload Output Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-User-Flow-Map
+          path: screenshots_ai_output/
+          retention-days: 7
