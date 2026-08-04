@@ -28,7 +28,7 @@ on:
       model:
         description: 'OpenCode model to use'
         required: true
-        default: 'openrouter/nvidia/nemotron-nano-12b-v2-vl:free'
+        default: 'opencode/deepseek-v4-flash-free'
         type: string
 
 jobs:
